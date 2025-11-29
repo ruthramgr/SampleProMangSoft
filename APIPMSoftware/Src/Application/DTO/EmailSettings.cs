@@ -7,4 +7,5 @@
         public string? SenderEmail { get; set; }
         public string? SenderPassword { get; set; }
     }
+    public record SendEmailRequest(string To, string Subject, string BodyHtml);
 }

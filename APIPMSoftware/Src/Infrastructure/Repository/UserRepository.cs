@@ -16,12 +16,11 @@ namespace APIPMSoftware.Src.Infrastructure.Repository
         public async Task<int> CreateUserAsync(string username, string email, string companyName)
         {
             using (SqlConnection conn=new SqlConnection(_connectionString))
-            using (SqlCommand cmd= new SqlCommand("",conn))
+            using (SqlCommand cmd= new SqlCommand("sp_CreateUsers", conn))
             {
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.AddWithValue("@UserName", username);
-                cmd.Parameters.AddWithValue("@Email", email);
-                cmd.Parameters.AddWithValue("@CompanyName", companyName);
+                cmd.Parameters.AddWithValue("@Email", email);    
                 SqlParameter userIdParameter = new SqlParameter("@UserId", SqlDbType.Int)
                 {
                     Direction = ParameterDirection.Output

@@ -14,8 +14,8 @@ namespace APIPMSoftware.Src.WebApi.Controllers
     {
         private readonly IMemoryCache _cashe;
         private readonly IUserRegistryRepository _userRegistryRepo;
-
         private readonly IEmailSender _emailSender;
+
         public RegistrationController(
             IMemoryCache cashe,
             IUserRegistryRepository userRegistryRepo,         
@@ -55,6 +55,52 @@ namespace APIPMSoftware.Src.WebApi.Controllers
 
                 return StatusCode(400, ResponseApiDynamic<string>.Fail($"Failed to register user: {ex.Message}"));
             }        
+        }
+        [HttpPost("register/resend-code")]
+        public async Task<IActionResult> ResendCode([FromBody]ResendCodecs resendCodecs)
+        {
+            try
+            {
+                if(string.IsNullOrWhiteSpace(resendCodecs.Email))
+                    return BadRequest(ResponseApiDynamic<string>.Fail("Email is required."));
+                var userId = await _userRegistryRepo.GetUserIdByEmail(resendCodecs.Email);
+                string code = new Random().Next(100000,999999).ToString();
+                _cashe.Set("$forgotCodeOTP" + userId, code, TimeSpan.FromMinutes(5));
+                _cashe.Set("@RegistrationOTP" + userId, code, TimeSpan.FromMinutes(5));
+                await _emailSender.SendAsync(resendCodecs.Email,"🔐 Your Verification Code", code);
+                bool result = true; // Assume email sent successfully if no exception is thrown
+                if(result)
+                {
+                    return Ok(ResponseApiDynamic<string>.Success("Verification code resent to email."));
+                }
+                else
+                {
+                    return Ok(ResponseApiDynamic<string>.Fail("Failed to resend verification code."));
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+        [HttpPost("register/verify")]
+        public IActionResult VerifyCode([FromBody] CodeVerify verify)
+        {
+            try
+            {
+                if(!_cashe.TryGetValue("$RegistrationOTP" + verify.userId,out string? storeCode))
+                    return BadRequest(ResponseApiDynamic<string>.Fail("Verification code expired or not found."));
+                if(storeCode !=verify.Code)
+                    return BadRequest(ResponseApiDynamic<string>.Fail("Invalid verification code."));
+
+                return Ok(ResponseApiDynamic<string>.Success("Email verified successfully."));
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
         }
     }
 }

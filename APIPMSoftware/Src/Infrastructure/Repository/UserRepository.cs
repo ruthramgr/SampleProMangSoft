@@ -37,5 +37,22 @@ namespace APIPMSoftware.Src.Infrastructure.Repository
                 return userid;
             }            
         }
+        public async Task<int?> GetUserIdByEmail(string email)
+        {
+            using (SqlConnection conn=new SqlConnection(_connectionString))
+            using (SqlCommand comm = new SqlCommand("SP_GETUSERIDBYEMAIL", conn))
+            {
+                comm.CommandType = CommandType.StoredProcedure;
+                comm.Parameters.AddWithValue("@EmailId", email);
+                await conn.OpenAsync();
+                var result = await comm.ExecuteScalarAsync();
+                if (result != null && int.TryParse(result.ToString(), out int userid))
+                {
+                    return userid;
+                }
+                else
+                    return null;
+            }
+    }
     }
 }

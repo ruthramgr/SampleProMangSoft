@@ -15,12 +15,12 @@ namespace APIPMSoftware.Src.Infrastructure.Repository
         }
         public async Task<int> CreateUserAsync(string username, string email, string companyName)
         {
-            using (SqlConnection conn=new SqlConnection(_connectionString))
-            using (SqlCommand cmd= new SqlCommand("sp_CreateUsers", conn))
+            using (SqlConnection conn = new SqlConnection(_connectionString))
+            using (SqlCommand cmd = new SqlCommand("sp_CreateUsers", conn))
             {
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.AddWithValue("@UserName", username);
-                cmd.Parameters.AddWithValue("@Email", email);    
+                cmd.Parameters.AddWithValue("@Email", email);
                 SqlParameter userIdParameter = new SqlParameter("@UserId", SqlDbType.Int)
                 {
                     Direction = ParameterDirection.Output
@@ -29,13 +29,66 @@ namespace APIPMSoftware.Src.Infrastructure.Repository
                 await conn.OpenAsync();
                 await cmd.ExecuteNonQueryAsync();
 
-                var userid=(int)userIdParameter.Value;
-                if(userid==-1)
+                var userid = (int)userIdParameter.Value;
+                if (userid == -1)
                 {
                     throw new Exception("Email already registered");
                 }
                 return userid;
-            }            
+            }
+        }
+        public async Task<int?> GetUserIdByEmail(string email)
+        {
+            using (SqlConnection conn = new SqlConnection(_connectionString))
+            using (SqlCommand comm = new SqlCommand("SP_GETUSERIDBYEMAIL", conn))
+            {
+                comm.CommandType = CommandType.StoredProcedure;
+                comm.Parameters.AddWithValue("@EmailId", email);
+                await conn.OpenAsync();
+                var result = await comm.ExecuteScalarAsync();
+                if (result != null && int.TryParse(result.ToString(), out int userid))
+                {
+                    return userid;
+                }
+                else
+                    return null;
+            }
+        }
+        public async Task UpdatePasswordAsync(int userId,string passwordHash)
+        {
+            using (SqlConnection conn=new SqlConnection(_connectionString))
+            using (SqlCommand cmd = new SqlCommand("sp_UpdatePassword", conn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+                cmd.Parameters.Add(new SqlParameter("@PasswordHash", SqlDbType.NVarChar, 255) { Value = passwordHash });
+                await conn.OpenAsync();
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+       
+
+        public async Task<(int? UserId, string? PasswordHass, bool? IsAdmin)> GetUserCredentialsByEmail(string email)
+        {
+            using (SqlConnection conn = new SqlConnection(_connectionString))
+            using (SqlCommand cmd = new SqlCommand("sp_LoginUser", conn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@EmailId", email);
+
+                await conn.OpenAsync();
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        int userId = reader.GetInt32(reader.GetOrdinal("Id"));
+                        string passwordHash = reader["PasswordHash"].ToString();
+                        bool isAdmin = (bool)reader["IsAdmin"];
+                        return (userId, passwordHash, isAdmin);
+                    }
+                }
+                return (null, null, false);
+            }
         }
     }
 }
